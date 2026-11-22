@@ -5,6 +5,8 @@
 import express, { type ErrorRequestHandler } from 'express';
 // All /api routes.
 import router from './routes.ts';
+// Sample notes for an empty database.
+import { seedIfEmpty } from './seed.ts';
 
 // Render (and other hosts) choose the port through PORT; 3000 is the local default.
 const DEFAULT_PORT = 3000;
@@ -49,6 +51,11 @@ const handleError: ErrorRequestHandler = (err, _req, res, _next) => {
 };
 // Added last, so it catches errors from everything above.
 app.use(handleError);
+
+// With SEED_IF_EMPTY set (as on a fresh demo deploy), an empty database gets the sample notes.
+if (process.env.SEED_IF_EMPTY) {
+  console.log(`Seeded ${seedIfEmpty()} sample notes.`);
+}
 
 // Starts the HTTP server on PORT; the callback runs once it is ready.
 app.listen(PORT, () => {
