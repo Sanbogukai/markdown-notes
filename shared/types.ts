@@ -28,7 +28,9 @@ export interface NoteSummary {
   tags: string[]
   pinned: boolean
   updated_at: string
-  // A short piece of the body. During a search, the matched words are wrapped in [ and ].
+  // A short piece of the body on one line. During a search, each matched word is wrapped in
+  // the control characters \u0002 (start) and \u0003 (end), which nobody types, unlike the
+  // [ and ] that Markdown links use.
   excerpt: string
 }
 
