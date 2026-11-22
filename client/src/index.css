@@ -1,0 +1,506 @@
+/* All the app's styles. Colours live in variables at the top, so the dark theme only
+   swaps the variables and every rule below follows. */
+
+/* :root is the <html> element; variables set here are visible to every element. */
+:root {
+  /* Page background. */
+  --bg: #f6f7f9;
+  /* Background of the panels and inputs. */
+  --panel: #ffffff;
+  /* A slightly darker panel, for code blocks, table headers and hovered rows. */
+  --panel-alt: #f0f2f5;
+  /* Main text colour. */
+  --text: #1c1f24;
+  /* Grey for secondary text: excerpts, dates, hints. */
+  --muted: #6a7280;
+  /* Thin lines around boxes and between rows. */
+  --border: #e3e6ea;
+  /* Blue for buttons, links and focus outlines. */
+  --accent: #2f5bea;
+  /* A pale blue behind the selected note and the pressed Pin button. */
+  --accent-soft: #e8eefe;
+  /* Red for errors and deletes. */
+  --danger: #b42318;
+  /* Amber for "Unsaved changes". */
+  --warn: #a15c07;
+  /* Green for "Saved". */
+  --ok: #12805c;
+  /* Corner rounding. */
+  --radius: 8px;
+  /* Monospace fonts for the textarea and code, each system's own first. */
+  --mono: ui-monospace, 'Cascadia Code', Consolas, 'SF Mono', monospace;
+
+  /* Tells the browser the page supports both themes, so scrollbars and inputs match. */
+  color-scheme: light dark;
+  /* Each system's own interface font, so it loads instantly with no download. */
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* The base size every rem value is measured from. */
+  font-size: 16px;
+  /* Space between lines of text, as a multiple of the font size. */
+  line-height: 1.5;
+  /* Applies the colours chosen above. */
+  color: var(--text);
+  background: var(--bg);
+}
+
+/* The dark theme, used when the system is set to dark mode. Only the colours change. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111317;
+    --panel: #1a1d23;
+    --panel-alt: #23272f;
+    --text: #e6e8eb;
+    --muted: #9aa3b0;
+    --border: #2c313a;
+    --accent: #7b9cff;
+    --accent-soft: #1f2a4a;
+    --danger: #f97066;
+    --warn: #f3b546;
+    --ok: #47cd89;
+  }
+}
+
+/* Widths and heights include padding and border, so sizes add up as written. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* No default margin around the page; the app fills the window itself. */
+body {
+  margin: 0;
+}
+
+/* Hides text visually but keeps it for screen readers (labels the design does not show). */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- Layout ---------- */
+
+/* Three columns filling the window: a fixed-width list, then editor and preview sharing
+   the rest equally. minmax(0, 1fr) lets a column shrink below its content's width, so a
+   long line of code scrolls inside the preview instead of widening the page. */
+.app {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr) minmax(0, 1fr);
+  height: 100vh;
+}
+
+/* The left column: header, search and a list that scrolls on its own. */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+}
+
+/* "Notes" on the left, the New note button on the right. */
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+}
+
+/* The app's name, kept small so the notes get the attention. */
+.sidebar-header h1 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+/* The middle column: an optional error line, then the editor filling the rest. */
+.editor-column {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--border);
+}
+
+/* Shown across columns two and three when no note is open. */
+.empty-pane {
+  grid-column: 2 / 4;
+  display: grid;
+  place-content: center;
+  padding: 24px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* ---------- Controls ---------- */
+
+/* Shared look for every button. */
+button {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+}
+
+/* A visible ring for keyboard users only (not on mouse clicks). */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Disabled buttons look faded and show they cannot be clicked. */
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* The main actions: New note, Save. */
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* The pressed state of the Pin toggle. */
+button[aria-pressed='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+/* The first Delete: red text, so it reads as dangerous without shouting. */
+button.danger-outline {
+  color: var(--danger);
+}
+
+/* The confirming Delete: solid red. */
+button.danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+/* Shared look for text inputs. */
+input,
+textarea {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel);
+}
+
+/* ---------- Sidebar ---------- */
+
+/* The search box, inset to match the header. */
+.search {
+  display: block;
+  padding: 0 16px 12px;
+}
+
+/* The search input fills the sidebar's width. */
+.search input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* The list scrolls by itself, so the header and search stay put. */
+.note-list {
+  flex: 1;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* One note: a full-width button with three stacked lines. */
+.note-row {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: none;
+  text-align: left;
+}
+
+/* A light tint under the pointer. */
+.note-row:hover {
+  background: var(--panel-alt);
+}
+
+/* The open note. */
+.note-row.selected {
+  background: var(--accent-soft);
+}
+
+/* The title line: bold, cut off with … when too long. */
+.note-row-title {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The excerpt: grey, at most two lines. line-clamp needs the -webkit- form in most browsers. */
+.note-row-excerpt {
+  color: var(--muted);
+  font-size: 0.85rem;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+/* The date: small and grey. */
+.note-row-date {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+/* Loading, empty and error messages in place of the list. */
+.list-message {
+  margin: 0;
+  padding: 16px;
+  color: var(--muted);
+}
+
+/* A failed list load is red. */
+.list-message.error {
+  color: var(--danger);
+}
+
+/* ---------- Editor ---------- */
+
+/* The editor fills its column: toolbar, title, then a textarea taking the rest. */
+.editor {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  background: var(--panel);
+}
+
+/* One row: status on the left, buttons on the right. */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* The inline delete question, laid out like the buttons it replaces. */
+.confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* The status text takes all spare room, pushing the buttons to the right. */
+.save-status {
+  margin-right: auto;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* Colours for each save state. */
+.save-status.saved {
+  color: var(--ok);
+}
+.save-status.dirty {
+  color: var(--warn);
+}
+.save-status.error {
+  color: var(--danger);
+}
+
+/* The title: large and borderless, like a document heading. */
+.title-input {
+  padding: 16px 16px 8px;
+  border: none;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+/* The Markdown text: monospace so lists and tables line up, filling the remaining height. */
+.body-input {
+  flex: 1;
+  padding: 8px 16px 16px;
+  border: none;
+  resize: none;
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  /* Coding fonts such as Cascadia Code join "://" or "</" into one symbol; in Markdown
+     source every character should show as typed. */
+  font-variant-ligatures: none;
+}
+
+/* A red line above the editor when an action failed. */
+.action-error {
+  margin: 0;
+  padding: 8px 16px;
+  color: var(--danger);
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+/* ---------- Preview ---------- */
+
+/* The right column scrolls by itself. */
+.preview {
+  overflow-y: auto;
+  padding: 16px 24px;
+}
+
+/* The hint shown for an empty body. */
+.preview-empty {
+  color: var(--muted);
+}
+
+/* Keeps lines a readable length; long words break instead of overflowing. */
+.markdown {
+  max-width: 70ch;
+  overflow-wrap: break-word;
+}
+
+/* No gap above the first element, so the preview lines up with the editor. */
+.markdown > :first-child {
+  margin-top: 0;
+}
+
+/* Headings: tighter lines, a little space above. */
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4 {
+  line-height: 1.25;
+  margin: 1.4em 0 0.5em;
+}
+
+/* The two top heading levels get an underline, as on GitHub. */
+.markdown h1,
+.markdown h2 {
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Links in the accent colour. */
+.markdown a {
+  color: var(--accent);
+}
+
+/* Inline code: monospace on a tinted background. */
+.markdown code {
+  font-family: var(--mono);
+  /* Characters show as typed, as in the editor. */
+  font-variant-ligatures: none;
+  font-size: 0.9em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: var(--panel-alt);
+}
+
+/* Code blocks scroll sideways rather than wrap, so code keeps its shape. */
+.markdown pre {
+  padding: 12px 16px;
+  overflow-x: auto;
+  border-radius: var(--radius);
+  background: var(--panel-alt);
+}
+
+/* Code inside a block already has the block's background and padding. */
+.markdown pre code {
+  padding: 0;
+  background: none;
+}
+
+/* Quotes: a bar on the left, grey text. */
+.markdown blockquote {
+  margin: 1em 0;
+  padding: 0 1em;
+  border-left: 4px solid var(--border);
+  color: var(--muted);
+}
+
+/* Tables: collapsed borders; a wide table scrolls inside the preview. */
+.markdown table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+
+/* Every cell gets a border and some room. */
+.markdown th,
+.markdown td {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+}
+
+/* Header cells on a tinted background. */
+.markdown th {
+  background: var(--panel-alt);
+}
+
+/* Task-list items (- [x]) drop the bullet, since the checkbox marks them.
+   remark-gfm gives them the class task-list-item. */
+.markdown li.task-list-item {
+  list-style: none;
+}
+
+/* Moves each checkbox left into the space a bullet would use, so task items line up with
+   plain items in the same list instead of looking indented under them. */
+.markdown li.task-list-item > input[type='checkbox'] {
+  margin: 0 0.4em 0 -1.4em;
+}
+
+/* Images never overflow the column (images arrive in project 9). */
+.markdown img {
+  max-width: 100%;
+}
+
+/* A plain dividing line for --- */
+.markdown hr {
+  border: none;
+  border-top: 1px solid var(--border);
+}
+
+/* ---------- Narrow screens ---------- */
+
+/* Below 900px the three columns stack. Phase 4 replaces this with a proper phone
+   layout: the list as its own screen and an Edit / Preview toggle. */
+@media (max-width: 900px) {
+  .app {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  /* The list takes at most half the screen height and scrolls. */
+  .sidebar {
+    max-height: 50vh;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* The editor gets a usable height of its own. */
+  .editor-column {
+    min-height: 60vh;
+    border-right: none;
+  }
+
+  /* The empty hint sits in the single column. */
+  .empty-pane {
+    grid-column: auto;
+  }
+}
