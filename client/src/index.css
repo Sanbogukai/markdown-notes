@@ -548,7 +548,8 @@ button.chip[aria-pressed='true'] {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.4rem 0;
+  /* Same side padding as the title and body, so the chips line up with the text. */
+  padding: 0.4rem 16px;
 }
 
 /* The box for typing a new tag, borderless so it reads as part of the row. */
@@ -599,7 +600,8 @@ mark {
 /* The Edit/Preview switch: two buttons side by side. */
 .view-toggle {
   gap: 0.4rem;
-  padding-bottom: 0.5rem;
+  /* Lined up with the toolbar and the title. */
+  padding: 8px 16px 0;
 }
 
 @media (max-width: 700px) {
@@ -615,6 +617,25 @@ mark {
   /* No note open: only the list. */
   .app:not(.has-note) .empty-pane {
     display: none;
+  }
+
+  /* The list screen gets the whole height, not the half the tablet layout gives it. */
+  .sidebar {
+    max-height: none;
+  }
+
+  /* Edit view: the textarea fills the screen. */
+  .app[data-view='edit'] .editor-column {
+    min-height: 100dvh;
+  }
+
+  /* Preview view: the editor shrinks to its toolbar and switch, with the preview under it. */
+  .app[data-view='preview'] .editor-column {
+    min-height: 0;
+  }
+
+  .app[data-view='preview'] .preview {
+    min-height: 100dvh;
   }
 
   /* A note open: no list. */
