@@ -139,7 +139,11 @@ export default function App() {
     async function load() {
       try {
         const list = await api.listTags()
-        if (!ignore) setTags(list)
+        if (ignore) return
+        setTags(list)
+        // A filter on a tag no note carries any more (its last note was deleted or untagged)
+        // has no chip left to click off, so it is cleared here instead.
+        setSelectedTag((current) => (current && !list.some((tag) => tag.tag === current) ? null : current))
       } catch {
         // The filter row is a convenience; the list's own error message covers an outage.
       }
