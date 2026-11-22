@@ -115,9 +115,10 @@ export const getNote = (id: number) => request<Note>(`/notes/${id}`)
 export const createNote = (changes: NoteChanges = {}) =>
   request<Note>('/notes', { method: 'POST', body: JSON.stringify(changes) })
 
-// Changes only the fields given and returns the whole note as saved.
-export const updateNote = (id: number, changes: NoteChanges) =>
-  request<Note>(`/notes/${id}`, { method: 'PATCH', body: JSON.stringify(changes) })
+// Changes only the fields given and returns the whole note as saved. keepalive lets the
+// request finish even while the page is closing, for the last save on beforeunload.
+export const updateNote = (id: number, changes: NoteChanges, keepalive = false) =>
+  request<Note>(`/notes/${id}`, { method: 'PATCH', body: JSON.stringify(changes), keepalive })
 
 // Deletes one note; its tags go with it on the server.
 export const deleteNote = (id: number) => request<void>(`/notes/${id}`, { method: 'DELETE' })

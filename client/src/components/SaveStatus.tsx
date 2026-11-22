@@ -1,7 +1,7 @@
-// A short line saying whether the open note's changes are saved. Phase 4 swaps the
-// Save button for autosave; this indicator stays and gains a "retrying" state.
+// A short line saying whether the open note's changes are saved by autosave.
 
-// Where a save stands: nothing happening, a request in flight, or the last one failed.
+// Where a save stands: nothing happening, a request in flight, or the last one failed
+// and a retry is waiting.
 export type SaveState = 'idle' | 'saving' | 'error'
 
 // What App hands in.
@@ -18,9 +18,9 @@ interface SaveStatusProps {
 function describe({ dirty, state, error }: SaveStatusProps): { text: string; tone: string } {
   // A save is on its way.
   if (state === 'saving') return { text: 'Saving…', tone: 'busy' }
-  // The last save failed; the changes are still only on this page.
-  if (state === 'error') return { text: `Not saved: ${error ?? 'unknown error'}`, tone: 'error' }
-  // Edits made since the last save.
+  // The last save failed and a retry is scheduled; the changes are still only on this page.
+  if (state === 'error') return { text: `Not saved, retrying (${error ?? 'unknown error'})`, tone: 'error' }
+  // Edits waiting for the pause in typing that triggers a save.
   if (dirty) return { text: 'Unsaved changes', tone: 'dirty' }
   // Everything on screen matches the server.
   return { text: 'Saved', tone: 'saved' }

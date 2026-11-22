@@ -504,3 +504,132 @@ textarea {
     grid-column: auto;
   }
 }
+
+/* ---- Tags: chips in the editor and the filter row ---- */
+
+/* One tag as a rounded pill. Used by both TagInput and TagFilter. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  padding: 0.15em 0.6em;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel-alt);
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+/* The filter row's chips are buttons; the chosen one takes the accent colour. */
+button.chip[aria-pressed='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* The x inside an editor chip: no box of its own, just the character. */
+.chip-remove {
+  border: none;
+  background: none;
+  padding: 0 0.1em;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+/* How many notes carry the tag, quieter than the name. */
+.chip-count {
+  color: var(--muted);
+  font-size: 0.8em;
+}
+
+/* The editor's tag row: chips, then the text box filling what is left. */
+.tag-input {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0;
+}
+
+/* The box for typing a new tag, borderless so it reads as part of the row. */
+.tag-text {
+  flex: 1;
+  min-width: 8rem;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  padding: 0.2rem;
+}
+
+/* Why a tag was refused. */
+.tag-problem {
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+
+/* The filter row under the search box. */
+.tag-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0 0.75rem 0.5rem;
+}
+
+/* Search matches in the list's excerpts. */
+mark {
+  background: #fde68a;
+  color: inherit;
+  border-radius: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  mark {
+    background: #6b5310;
+  }
+}
+
+/* ---- Phone layout: one screen at a time ---- */
+
+/* The back button and Edit/Preview switch exist only on phones. */
+.mobile-only {
+  display: none;
+}
+
+/* The Edit/Preview switch: two buttons side by side. */
+.view-toggle {
+  gap: 0.4rem;
+  padding-bottom: 0.5rem;
+}
+
+@media (max-width: 700px) {
+  /* One column; each screen fills it. */
+  .app {
+    display: block;
+  }
+
+  .mobile-only {
+    display: inline-flex;
+  }
+
+  /* No note open: only the list. */
+  .app:not(.has-note) .empty-pane {
+    display: none;
+  }
+
+  /* A note open: no list. */
+  .app.has-note .sidebar {
+    display: none;
+  }
+
+  /* Edit view hides the preview; preview view hides the editing fields. */
+  .app[data-view='edit'] .preview {
+    display: none;
+  }
+
+  .app[data-view='preview'] .title-input,
+  .app[data-view='preview'] .tag-input,
+  .app[data-view='preview'] .body-input {
+    display: none;
+  }
+}
