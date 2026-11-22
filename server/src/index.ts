@@ -3,6 +3,8 @@
 
 // Express handles HTTP: routing and JSON parsing. ErrorRequestHandler is only a type.
 import express, { type ErrorRequestHandler } from 'express';
+// Turns a file: URL into a normal path for the operating system.
+import { fileURLToPath } from 'node:url';
 // All /api routes.
 import router from './routes.ts';
 // Sample notes for an empty database.
@@ -36,6 +38,18 @@ app.use('/api', router);
 app.use('/api', (req, res) => {
   // 404 "not found", naming the method and path that had no route.
   res.status(HTTP_NOT_FOUND).json({ error: `No route for ${req.method} ${req.originalUrl}` });
+});
+
+// The built client (npm run build in client/). In production the same server hands out the
+// page and the API, so there is one service and no cross-origin requests. In development
+// Vite serves the page instead and this folder may not exist; nothing below needs it to.
+const CLIENT_DIST = fileURLToPath(new URL('../../client/dist', import.meta.url));
+// Serves index.html, the JavaScript and the CSS from the build folder.
+app.use(express.static(CLIENT_DIST));
+// Any other path that is not /api gets the page too, so a reload or a shared link still
+// opens the app. Express 5 needs the catch-all to have a name: {*splat}.
+app.get('/{*splat}', (_req, res) => {
+  res.sendFile('index.html', { root: CLIENT_DIST });
 });
 
 // Errors always come back as JSON. Bad JSON bodies arrive here with status 400, and bodies
