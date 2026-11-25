@@ -24,6 +24,6 @@
     // Skips checking the .d.ts files inside node_modules, which is slow and not our code.
     "skipLibCheck": true
   },
-  // The server's own code plus the shared types.
-  "include": ["src", "../shared"]
+  // The server's own code, its tests and the shared types.
+  "include": ["src", "test", "../shared"]
 }

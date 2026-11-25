@@ -1,78 +1,63 @@
-// The server's entry point: builds the Express app, wires up the routes and starts listening.
+// The server's entry point: opens the database, builds the app and starts listening.
 // Node 26 runs this .ts file directly by stripping out the types; there is no build step.
 
-// Express handles HTTP: routing and JSON parsing. ErrorRequestHandler is only a type.
-import express, { type ErrorRequestHandler } from 'express';
+// existsSync checks whether a file or folder is there, without throwing if it is not.
+import { existsSync } from 'node:fs';
 // Turns a file: URL into a normal path for the operating system.
 import { fileURLToPath } from 'node:url';
-// All /api routes.
-import router from './routes.ts';
-// Sample notes for an empty database.
-import { seedIfEmpty } from './seed.ts';
+// Builds the Express app with every route attached.
+import { createApp } from './app.ts';
+// Opens the SQLite file and creates any missing tables.
+import { openDatabase } from './db.ts';
+// The daily clean-up of owners nobody has used for 30 days.
+import { DAY_MS, ownerStore } from './owners.ts';
 
 // Render (and other hosts) choose the port through PORT; 3000 is the local default.
 const DEFAULT_PORT = 3000;
 // Number() turns the text "10000" into 10000; `||` falls back when PORT is missing or not a number.
 const PORT = Number(process.env.PORT) || DEFAULT_PORT;
 
-// The largest JSON body accepted. A note may be 100,000 characters, and some characters take
-// more than one byte, so this leaves room for a full note plus its title and tags.
-const JSON_LIMIT = '400kb';
-
-// A request error (4xx) explains itself; anything from 500 up is the server's fault.
-const HTTP_NOT_FOUND = 404;
-const HTTP_SERVER_ERROR = 500;
-
-// Creates the app that every middleware and route below is attached to.
-const app = express();
-
-// Middleware runs on every request, top to bottom, in the order it is added.
-
-// Parses JSON request bodies into req.body, refusing anything over the limit with a 413.
-app.use(express.json({ limit: JSON_LIMIT }));
-// Every route in routes.ts now answers under /api, e.g. /api/notes.
-app.use('/api', router);
-
-// Unknown API routes get JSON, not Express's HTML page.
-// It only runs when no route above matched, because a matching route ends the request.
-app.use('/api', (req, res) => {
-  // 404 "not found", naming the method and path that had no route.
-  res.status(HTTP_NOT_FOUND).json({ error: `No route for ${req.method} ${req.originalUrl}` });
-});
+// The database file: DB_PATH when set, otherwise server/notes.db, one folder up from this file.
+const dbPath = process.env.DB_PATH ?? fileURLToPath(new URL('../notes.db', import.meta.url));
+// One connection, shared by the app and the clean-up.
+const db = openDatabase(dbPath);
 
 // The built client (npm run build in client/). In production the same server hands out the
 // page and the API, so there is one service and no cross-origin requests. In development
-// Vite serves the page instead and this folder may not exist; nothing below needs it to.
-const CLIENT_DIST = fileURLToPath(new URL('../../client/dist', import.meta.url));
-// Serves index.html, the JavaScript and the CSS from the build folder.
-app.use(express.static(CLIENT_DIST));
-// Any other path that is not /api gets the page too, so a reload or a shared link still
-// opens the app. Express 5 needs the catch-all to have a name: {*splat}.
-app.get('/{*splat}', (_req, res) => {
-  res.sendFile('index.html', { root: CLIENT_DIST });
-});
+// Vite serves the page instead and this folder is usually missing.
+const builtClient = fileURLToPath(new URL('../../client/dist', import.meta.url));
+// Passed on only when it is there.
+const clientDir = existsSync(builtClient) ? builtClient : undefined;
 
-// Errors always come back as JSON. Bad JSON bodies arrive here with status 400, and bodies
-// over the limit with 413. Express knows this is the error handler because it takes four
-// arguments; `_next` is unused, but it must be listed. The leading _ marks it as unused.
-const handleError: ErrorRequestHandler = (err, _req, res, _next) => {
-  // Use the error's own status when it has one, otherwise 500.
-  const status: number = err.status ?? err.statusCode ?? HTTP_SERVER_ERROR;
-  // Server faults are logged for debugging; client mistakes (4xx) are not.
-  if (status >= HTTP_SERVER_ERROR) console.error(err);
-  // A 500 never shows its internal message to the visitor; a 4xx explains what was wrong.
-  res.status(status).json({ error: status >= HTTP_SERVER_ERROR ? 'Something went wrong' : err.message });
-};
-// Added last, so it catches errors from everything above.
-app.use(handleError);
+// The app over that database, with the real clock (the default), and the client when built.
+const app = createApp({ db, clientDir });
 
-// With SEED_IF_EMPTY set (as on a fresh demo deploy), an empty database gets the sample notes.
-if (process.env.SEED_IF_EMPTY) {
-  console.log(`Seeded ${seedIfEmpty()} sample notes.`);
+// The owner queries, for the clean-up below.
+const owners = ownerStore(db);
+
+// Removes stale owners and logs how many. A failure is logged and the server keeps running;
+// the next day's run tries again.
+function cleanUp() {
+  try {
+    // Owners unseen for 30 days go, with their notes and tags.
+    const count = owners.deleteStaleOwners(new Date());
+    // Shows up in the Render log.
+    console.log(`Removed ${count} owner(s) unseen for 30 days`);
+  } catch (err) {
+    // Logged for debugging only.
+    console.error('Clean-up failed', err);
+  }
 }
+// Once at start-up, then daily. unref() lets the process exit without waiting for the timer.
+cleanUp();
+setInterval(cleanUp, DAY_MS).unref();
 
-// Starts the HTTP server on PORT; the callback runs once it is ready.
-app.listen(PORT, () => {
+// Starts the HTTP server on PORT. Express 5 hands a failure (such as the port already being
+// in use) to the callback instead of throwing, so the callback checks for one and stops the
+// process rather than claiming to be listening.
+app.listen(PORT, (error) => {
+  // Port taken or similar: stop with the error.
+  if (error) throw error;
   // Confirms the server is up and where.
   console.log(`Listening on http://localhost:${PORT}`);
 });

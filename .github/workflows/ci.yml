@@ -1,0 +1,54 @@
+# Runs the server's type check and tests, and the client's lint and build, on every push and
+# pull request, so a broken test shows as a red cross on GitHub instead of being found later.
+# Render deploys a push only after this passes.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    # Every command below runs inside server/.
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      # Fetches the repository's code.
+      - uses: actions/checkout@v4
+      # Installs the Node version pinned in .node-version, and caches npm downloads
+      # between runs using the lock file as the key.
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      # Installs exactly what the lock file lists.
+      - run: npm ci
+      # TypeScript's checks, on the server code, the tests and the shared types.
+      - run: npm run typecheck
+      # Vitest, once, without watching. Each test uses its own in-memory SQLite database.
+      - run: npm test
+
+  client:
+    runs-on: ubuntu-latest
+    # Every command below runs inside client/.
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      # Fetches the repository's code.
+      - uses: actions/checkout@v4
+      # Same Node as the server, with npm downloads cached on the client's lock file.
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      # Installs exactly what the lock file lists.
+      - run: npm ci
+      # oxlint: likely bugs and React hook mistakes.
+      - run: npm run lint
+      # The same build Render runs (it type-checks the client first), so a broken build shows here first.
+      - run: npm run build

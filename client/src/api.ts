@@ -51,18 +51,81 @@ interface ErrorBody {
   issues?: FieldIssue[]
 }
 
+// Each browser has its own private notebook on the server, found by a random key kept here
+// in localStorage and sent in this header. The server forgets a key when its owner goes
+// unused for 30 days, or when Render wipes the disk on a restart; a 401 answer then gets a
+// new key (with the sample notes again) and the request is sent once more.
+const OWNER_HEADER = 'X-Owner-Key'
+const STORAGE_KEY = 'markdown-notes.owner-key'
+// 401: the key is missing or the server does not know it.
+const HTTP_UNAUTHORIZED = 401
+
+// The key in use, and the owner request in flight if there is one. The page asks for the
+// note list and the tags at once; sharing one pending request makes one owner, not two.
+const owner: { key: string | null; pending: Promise<string> | null } = {
+  key: localStorage.getItem(STORAGE_KEY),
+  pending: null,
+}
+
+// Asks the server for a new owner, keeps its key and returns it.
+async function requestOwner(): Promise<string> {
+  try {
+    // A new owner with the sample notes.
+    const res = await fetch('/api/owners', { method: 'POST' })
+    // 429 (too many new notebooks from this address) or a server fault.
+    if (!res.ok) throw new ApiError(`Could not start a new notebook (${res.status})`)
+    // The answer is { key }.
+    const { key } = (await res.json()) as { key: string }
+    // Kept for the next visit.
+    localStorage.setItem(STORAGE_KEY, key)
+    // And for the next request.
+    owner.key = key
+    return key
+  } finally {
+    // Settled either way, so a later call can try again.
+    owner.pending = null
+  }
+}
+
+// A new owner, shared by everyone who asks while it is on its way.
+function newOwner(): Promise<string> {
+  // Starts a request only when none is running.
+  owner.pending ??= requestOwner()
+  return owner.pending
+}
+
+// The key to retry with after `stale` got a 401. If another request has already replaced it,
+// that key is used instead of making yet another owner.
+function replaceKey(stale: string): Promise<string> {
+  return owner.key !== null && owner.key !== stale ? Promise.resolve(owner.key) : newOwner()
+}
+
+// Sends one request with the key.
+function send(path: string, init: RequestInit, key: string): Promise<Response> {
+  // Relative URL: in development Vite forwards /api to the server (vite.config.ts);
+  // in production the same Express server serves both the page and /api.
+  return fetch(`/api${path}`, {
+    // Copies in method, body, keepalive and anything else the caller passed.
+    ...init,
+    headers: {
+      // Only requests with a body say they are sending JSON. The server refuses anything else.
+      ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+      // The owner key on every request.
+      [OWNER_HEADER]: key,
+    },
+  })
+}
+
 // Sends one request to /api + path and returns the parsed JSON body as type T.
 // The caller names T, for example request<Note>(...); TypeScript trusts that the server
 // sends that shape, which holds because both sides share the types in shared/types.ts.
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  // Relative URL: in development Vite forwards /api to the server (vite.config.ts);
-  // in production the same Express server serves both the page and /api.
-  const res = await fetch(`/api${path}`, {
-    // Only requests with a body say they are sending JSON. The server refuses anything else.
-    headers: init.body ? { 'Content-Type': 'application/json' } : undefined,
-    // Copies in method, body and anything else the caller passed.
-    ...init,
-  })
+  // The stored key, or a new owner's.
+  const key = owner.key ?? (await newOwner())
+  // First try.
+  const first = await send(path, init, key)
+  // Once only: a second 401 with a brand-new key is treated as an ordinary error below.
+  const res = first.status === HTTP_UNAUTHORIZED ? await send(path, init, await replaceKey(key)) : first
   // A successful delete has no body. Only deleteNote reaches this, and it asks for void.
   if (res.status === HTTP_NO_CONTENT) return undefined as T
 
